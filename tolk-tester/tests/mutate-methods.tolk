@@ -306,6 +306,19 @@ fun testExplicitReturn() {
     );
 }
 
+fun int.add(mutate self, dx: int) { self += dx }
+fun int.del(mutate self) { self = 0; return self }
+
+@method_id(116)
+fun testUB() {
+    var x = 100;
+    var y = 100;
+    // x.add(x.del()) is disallowed by the borrow checker, but `!` operator allows bypassing
+    x.add(x!.del());
+    y.add(int.del(mutate y!));
+    return (x, y);
+}
+
 
 fun main(){
     // mark used to codegen them
@@ -328,6 +341,7 @@ fun main(){
 @testcase | 113 |    | 320
 @testcase | 114 |    | 1 2 4
 @testcase | 115 |    | 13 2
+@testcase | 116 |    | 100 100
 
 @fif_codegen
 """
