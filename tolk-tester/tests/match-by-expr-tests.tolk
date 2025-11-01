@@ -1,6 +1,11 @@
 const C1 = 1;
 const C2 = C1 + 1;
 
+enum Role {
+    User,
+    Admin,
+}
+
 @method_id(101)
 fun test1(x: int) {
     return match (x) {
@@ -137,6 +142,44 @@ fun test12(x: int) {
     return g12
 }
 
+fun invalidAsmRole(): Role asm "99 PUSHINT"
+fun invalidAsmBool(): bool asm "99 PUSHINT"
+
+@noinline
+fun mapRole(r: Role): int {
+    return match (r) {
+        Role.User => 100,
+        Role.Admin => 200,
+    }
+    // no "missing return", match is exhaustive
+}
+
+@noinline
+fun mapBool(b: bool): int {
+    return match (b) {
+        true => 100,
+        false => 200,
+    }
+    // no "missing return", match is exhaustive
+}
+
+@method_id(113)
+fun test13() {
+    var ex1 = 0;
+    var ex2 = 0;
+
+    // will throw (the compiler generates "else" implicitly for enums)
+    try { ex1 = mapRole(invalidAsmRole()); }        
+    catch (ex) { ex1 = ex }
+
+    // will not throw (the compiler compiles "match" for bool as true => else =>)
+    try { ex2 = mapBool(invalidAsmBool()); }
+    catch (ex) { ex2 = ex }
+    
+    return (ex1, ex2);
+}
+
+
 
 type asdf = int;
 
@@ -178,6 +221,7 @@ fun main() {
 @testcase | 111 | -1       | 0
 @testcase | 112 | 2        | 2
 @testcase | 112 | 20       | 20
+@testcase | 113 |          | 5 200
 
 @fif_codegen
 """
@@ -259,6 +303,15 @@ fun main() {
     }>
     $g12 SETGLOB
   }>
+"""
+
+@fif_codegen
+"""
+      1 EQINT                   //  '6
+      IFNOTJMP:<{               // 
+        5 THROW
+      }>                        // 
+      200 PUSHINT               //  '1=200
 """
 
  */
