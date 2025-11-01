@@ -973,8 +973,10 @@ class CheckExpectLazyAssertionsVisitor final : public ASTVisitorFunctionBody {
       AnyV cur_stmt = v->get_item(i);
       if (auto v_call = cur_stmt->try_as<ast_function_call>()) {
         if (v_call->fun_maybe && v_call->fun_maybe->is_builtin() && v_call->fun_maybe->name == "__expect_lazy") {
+          // __expect_lazy("...") is a compiler built-in for testing, it's not indented to be called by users
+          auto v_expected_str = v_call->get_arg(0)->get_expr()->try_as<ast_string_const>();
+          tolk_assert(i + 1 < v->size() && v_expected_str && "invalid __expect_lazy");
           AnyV next_stmt = v->get_item(i + 1);
-          std::string_view expected = v_call->get_arg(0)->get_expr()->as<ast_string_const>()->str_val;
           std::string actual;
           if (auto next_aux = next_stmt->try_as<ast_artificial_aux_vertex>()) {
             if (const auto* aux_load = dynamic_cast<const AuxData_LazyObjectLoadFields*>(next_aux->aux_data)) {
@@ -985,7 +987,7 @@ class CheckExpectLazyAssertionsVisitor final : public ASTVisitorFunctionBody {
             }
           }
 
-          if (actual != expected) {
+          if (actual != v_expected_str->str_val) {
             err("__expect_lazy failed: actual \"{}\"", actual).fire(SrcRange::span(cur_stmt->range, 13));
           }
         }
